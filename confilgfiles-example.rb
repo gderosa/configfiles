@@ -7,13 +7,19 @@ module ConfigFiles
   class Parameter
     attr_accessor :name, :properties
     def is(*args)
-      @properties = args if args.length > 0
+      raise ArgumentError, 'is what?' if args.length == 0
+      @properties = args 
     end
     def is?(property)
       @properties.include? property
     end
-    def convert(&block)
-      @conversion = block
+    def convert(value=nil, &block)
+      if block_given?
+        @conversion = block
+      end
+      if @conversion.respond_to? :call and value
+        @conversion.call value
+      end
     end
   end
 
@@ -26,6 +32,10 @@ module ConfigFiles
       else
         @code
       end
+    end
+
+    def read(io=STDIN)
+      code.call io
     end
   end
 
@@ -52,12 +62,25 @@ module ConfigFiles
       end
     end
 
+    attr_reader :data
+
+    def initialize
+      @data = {}
+    end
+
     def parser
       p = Parser.new
       def p.method_missing(id)
         @@parsers[id]
       end
       return p
+    end
+
+    def load(parse_result)
+      @data = {}
+      parse_result.each_pair do |name, value|
+        @data[name] = @@parameters[name].convert value 
+      end
     end
 
   end
@@ -68,20 +91,20 @@ class MyIPList < ConfigFiles::Base
   add parameter do |p|
     p.name = :list
     p.is :required
-    p.convert do |enum|
-      enum.each do |ipstr|
-        yield IPAddr.new ipstr
-      end
+    p.convert do |ary|
+      ary.map {|ipstr| IPAddr.new ipstr}
     end
   end
 
   add parser do |prs|
     prs.name = :my_ip_list_extractor
     prs.code do |io|
+      ary = []
       io.each_line do |line|
         next if line =~ /^\s*$/
-        yield line.strip
+        ary << line.strip
       end
+      {:list => ary}
     end
   end
 
@@ -92,7 +115,12 @@ end
 
 l = MyIPList.new
 
+io = File.open 'ip.conf'
+parse_result = l.parser.my_ip_list_extractor.read io
+io.close
 
-pp l.parser.my_ip_list_extractor.code
+l.load parse_result
+
+p l.data 
 
 
