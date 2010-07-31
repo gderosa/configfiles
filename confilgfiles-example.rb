@@ -1,4 +1,3 @@
-
 require 'ipaddr'
 require 'pp'
 
@@ -17,8 +16,10 @@ module ConfigFiles
       if block_given?
         @conversion = block
       end
-      if @conversion.respond_to? :call and value
+      if @conversion.respond_to? :call 
         @conversion.call value
+      else
+        value
       end
     end
   end
@@ -39,16 +40,21 @@ module ConfigFiles
     end
   end
 
+  class Converter < Proc; end
+
   class Base
-    @@parameters ||= {}
-    @@parsers ||= {}
+    @@parameters  ||= {}
+    @@parsers     ||= {}
+    @@default     ||= {}
+    @@unknown     ||= {}
 
-    # sugar
-    def self.parameter; Parameter; end
-    def self.parser; Parser; end
+    # DSL/sugar
+    def self.parameter;   Parameter;    end
+    def self.parser;      Parser;       end
+    def self.converter;   Converter;    end
 
-    def self.parameters; @@parameters; end
-    def self.parsers; @@parsers; end
+    def self.parameters;  @@parameters; end
+    def self.parsers;     @@parsers;    end
     
     def self.add(what, &block)
       if what == parameter
@@ -62,24 +68,37 @@ module ConfigFiles
       end
     end
 
+    def self.default(what, &block)
+      if what == converter
+        @@default[:converter] = block
+      end
+    end
+
+    def self.unknown(what, &block)
+      if what == parameter
+        @@unknown[:parameter] = block
+      end
+    end
+
+    def self.run_parser(id, io)
+      @@parsers[id].read io
+    end
+
     attr_reader :data
 
     def initialize
       @data = {}
     end
 
-    def parser
-      p = Parser.new
-      def p.method_missing(id)
-        @@parsers[id]
-      end
-      return p
-    end
-
     def load(parse_result)
       @data = {}
       parse_result.each_pair do |name, value|
-        @data[name] = @@parameters[name].convert value 
+        if @@parameters[name]
+          @data[name] = @@parameters[name].convert value
+        else
+          @@unknown[:parameter].call name if
+            @@unknown && @@unknown[:parameter]
+        end
       end
     end
 
@@ -89,15 +108,24 @@ end
 
 class MyIPList < ConfigFiles::Base
   add parameter do |p|
-    p.name = :list
-    p.is :required
+    p.name    = :list
+    p.is        :required
     p.convert do |ary|
       ary.map {|ipstr| IPAddr.new ipstr}
     end
   end
 
+  add parameter do |p|
+    p.name    = :a
+  end
+  add parameter do |p|
+    p.name    = :b
+  end
+
+
+
   add parser do |prs|
-    prs.name = :my_ip_list_extractor
+    prs.name  = :my_ip_list_extractor
     prs.code do |io|
       ary = []
       io.each_line do |line|
@@ -108,6 +136,28 @@ class MyIPList < ConfigFiles::Base
     end
   end
 
+  add parser do |prs|
+    prs.name = :keyval
+    prs.code do |io|
+      h = {}
+      io.each_line do |line|
+        next if line =~ /^\s*$/
+        if line =~ /(.*)=(.*)/
+          h[$1.to_sym] = $2
+        end
+      end
+      h
+    end
+  end
+
+  unknown parameter do |name|
+    fail "unknown param #{name}"
+  end
+
+  default converter do |value|
+    value.to_f
+  end
+
 end
 
 #pp MyIPList.parameters
@@ -115,12 +165,17 @@ end
 
 l = MyIPList.new
 
-io = File.open 'ip.conf'
-parse_result = l.parser.my_ip_list_extractor.read io
-io.close
+File.open 'ip.conf' do |f|
+  l.load MyIPList.run_parser :my_ip_list_extractor, f
+end
 
-l.load parse_result
+pp l.data
 
-p l.data 
+File.open 'kv.conf' do |f|
+  l.load MyIPList.run_parser :keyval, f
+end
+
+pp l.data
+
 
 
