@@ -18,12 +18,20 @@ class MyConfig < ConfigFiles::Base
   parameter :par_custom do |s|
     s.length 
   end
-  parameter :iplist do |list|
-    Enumerator.new do |yielder|
-      list.each do |ipstr|
-        yielder << IPAddr.new(ipstr)
-      end
-    end
+
+  #parameter :iplist do |list|
+  #  Enumerator.new do |yielder|
+  #    list.each do |ipstr|
+  #      yielder << IPAddr.new(ipstr)
+  #    end
+  #  end
+  #end
+
+  # receive an Enumerator from Parser, and turn into another Enumerator
+  #
+  # NOTE: Enumerable#map_enum would be cool ;-)
+  enumerator :iplist do |ipstr| 
+    IPAddr.new(ipstr)
   end
 
   validate do 
@@ -79,7 +87,7 @@ parse_result = {
 
 c.load parse_result
 
-pp c.iplist.to_a
+pp c.iplist
 
 
 

@@ -26,6 +26,21 @@ module ConfigFiles
       }
     end
 
+    # A special kind of parameter, with a special kind of converter, which in turn
+    # converts an Enumerator of Strings into an Enumerator of custom objects. 
+    # Working with Enumerators instead of
+    # Arrays is the right thing to do when you deal with very long list of
+    # names, IP adresses, URIs etc. 
+    def self.enumerator(name, &block)
+      parameter name do |enum|
+        Enumerator.new do |yielder|
+          enum.each do |string|
+            yielder << block.call(string) 
+          end
+        end
+      end
+    end
+
     def self.validate(&block)
       @@validate = block
     end
