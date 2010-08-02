@@ -30,6 +30,8 @@ class MyConfig < ConfigFiles::Base
   # receive an Enumerator from Parser, and turn into another Enumerator
   #
   # NOTE: Enumerable#map_enum would be cool ;-)
+  #
+  # TODO: use facets Enumerable#defer
   enumerator :iplist do |ipstr| 
     IPAddr.new(ipstr)
   end
