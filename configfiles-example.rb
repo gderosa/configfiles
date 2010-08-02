@@ -1,7 +1,5 @@
 $LOAD_PATH.unshift 'lib'
 
-$count ||= 1
-
 require 'pp'
 require 'ipaddr'
 require 'configfiles'
@@ -31,7 +29,9 @@ class MyConfig < ConfigFiles::Base
   #
   # NOTE: Enumerable#map_enum would be cool ;-)
   #
-  # TODO: use facets Enumerable#defer
+  # TODO: use facets Enumerable#defer? Mmm, let's try to depend
+  # just on the std lib if possible...
+  #
   enumerator :iplist do |ipstr| 
     IPAddr.new(ipstr)
   end
@@ -84,7 +84,7 @@ end
 c = MyConfig.new
 
 parse_result = {
-  :iplist => MyListSlurper.read(File.open '../iplist.txt')
+  :iplist => MyListSlurper.read(File.open 'iplist.txt')
 }
 
 c.load parse_result

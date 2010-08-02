@@ -1,6 +1,12 @@
+# Copyright 2010, Guido De Rosa <guido.derosa*vemarsas.it>
+# License: same of Ruby
+
 module ConfigFiles
 
   module Parser
+    def self.read_file(path)
+      self.read File.open path
+    end
   end
 
   class Base
@@ -9,7 +15,23 @@ module ConfigFiles
     class RuntimeError < ::RuntimeError; end
 
     @@parameters ||= {}
-    @@config ||= {}
+    @@options ||= {}
+
+    # examples: 
+    #   on :unknown_parameter, :fail | :accept | :ignore
+    #   on :unknown_parameter, {|str| str.to_i}
+    #
+    def self.on(name, value=nil, &block)
+      if block
+        @@options[name] = block
+      else
+        @@options[name] = value
+      end
+    end
+
+    def self.option(name)
+      @@options[name]
+    end
 
     def self.parameter(name, converter=nil, &converter_block)
       if converter
@@ -45,10 +67,8 @@ module ConfigFiles
       @@validate = block
     end
 
-    attr_accessor :config
-
     def initialize
-      @config = @@config
+      @options = @@options.dup
       @data = {}
     end
 
@@ -64,10 +84,14 @@ module ConfigFiles
       h.each_pair do |id, value|
         if @@parameters[id][:converter]
           @data[id] = @@parameters[id][:converter].call(value)
-        elsif @config[:unknown_parameter] == :fail
+        elsif @options[:unknown_parameter] == :fail
           raise RuntimeError, "unknown parameter #{key}" # otherwise ignore
+        elsif @options[:unknown_parameter].respond_to? :call
+          block = @options[:unknown_parameter]
+          @data[id] = block.call value
         end
       end
+      validate
     end
 
     def flush
