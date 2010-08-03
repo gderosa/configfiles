@@ -1,7 +1,11 @@
 # Copyright 2010, Guido De Rosa <guido.derosa*vemarsas.it>
 # License: same of Ruby
 
+
+
 module ConfigFiles
+
+  VERSION = 0.0.1
 
   module Parser
     def self.read_file(path)
