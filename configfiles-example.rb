@@ -17,14 +17,6 @@ class MyConfig < ConfigFiles::Base
     s.length 
   end
 
-  #parameter :iplist do |list|
-  #  Enumerator.new do |yielder|
-  #    list.each do |ipstr|
-  #      yielder << IPAddr.new(ipstr)
-  #    end
-  #  end
-  #end
-
   # receive an Enumerator from Parser, and turn into another Enumerator
   #
   # NOTE: Enumerable#map_enum would be cool ;-)
@@ -36,12 +28,11 @@ class MyConfig < ConfigFiles::Base
     IPAddr.new(ipstr)
   end
 
-  validate do 
-    raise MyArgumentError if par_custom > 100
-    raise MyException unless par_str =~ /\S+/
+  validate do |data| 
+    raise MyArgumentError if data[:par_custom] > 100
+    raise MyException unless data[:par_str] =~ /\S+/
     # or you may use standard exceptions....
-
-    return true
+    true
   end
 
 end
@@ -52,13 +43,14 @@ class MyKeyValueParser
 
   def self.read(io, opt_h={}) 
     h = {}
-    io.eaach_line do |line|
-      key_re    = '[\w\d_-\.]+'
-      value_re  = '[\w\d_-\.]+'
-      if line = /(#{key_re})\s*=\s*(#{value_re})/ 
+    io.each_line do |line|
+      key_re    = '[\w\d_\-\.]+'
+      value_re  = '[\w\d_\-\.]+'
+      if line =~ /(#{key_re})\s*=\s*(#{value_re})/ 
         h[$1.to_sym] = $2
       end
     end
+    return h
   end
 end
 
@@ -83,13 +75,11 @@ end
 
 c = MyConfig.new
 
-parse_result = {
-  :iplist => MyListSlurper.read(File.open 'iplist.txt')
-}
+parse_result = MyKeyValueParser.read(File.open 'keyval.conf')
 
 c.load parse_result
 
-pp c.iplist
+pp c
 
 
 

@@ -24,6 +24,8 @@ module ConfigFiles
     def self.on(name, value=nil, &block)
       if block
         @@options[name] = block
+      elsif name == :unknown_parameter and value == :accept
+        @@options[name] = lambda {|x| x} 
       else
         @@options[name] = value
       end
@@ -41,7 +43,7 @@ module ConfigFiles
           converter_block = lambda {|x| x.method(converter).call}
         end
       else
-        converter_block || lambda {|x| x}  
+        converter_block ||= lambda {|x| x}  
       end
       @@parameters[name] = {
         :converter  => converter_block
@@ -67,17 +69,16 @@ module ConfigFiles
       @@validate = block
     end
 
+    attr_accessor :options, :data
+
     def initialize
       @options = @@options.dup
       @data = {}
+      def @data.missing_method(id); @data[id]; end
     end
 
     def validate
-      @@validate.call
-    end
-
-    def method_missing(id)
-      @data[id]
+      @@validate.call(@data)
     end
 
     def load(h)
@@ -91,7 +92,7 @@ module ConfigFiles
           @data[id] = block.call value
         end
       end
-      validate
+      validate  
     end
 
     def flush
