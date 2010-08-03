@@ -43,7 +43,9 @@ module ConfigFiles
       if converter
         if converter_block
           raise ArgumentError, 'you must either specify a symbol or a block'
-        else
+        elsif converter.is_a? Hash
+          converter_block = lambda {|x| converter[x]} # x is a String from conf file
+        else #Symbol
           converter_block = lambda {|x| x.method(converter).call}
         end
       else
