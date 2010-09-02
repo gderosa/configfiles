@@ -1,12 +1,18 @@
 # Copyright 2010, Guido De Rosa <guido.derosa*vemarsas.it>
 # License: same of Ruby
 
-
-
 module ConfigFiles
 
   VERSION = '0.0.2'
 
+  # You should write your parser class and include this module.
+  # Your parser class must have a read(io) class method,
+  # taking an IO object and returnig a key-value hash, where keys
+  # are smbols and values are Strings or Enumerators yielding Strings 
+  #
+  # This result will be passed to YourConfigClass#load,
+  # where YourConfigClass inherits from ConfigFiles::Base
+  #
   module Parser
     def self.read_file(path)
       self.read File.open path
@@ -89,7 +95,7 @@ module ConfigFiles
 
     def load(h)
       h.each_pair do |id, value|
-        if @@parameters[id][:converter]
+        if @@parameters[id] and @@parameters[id][:converter]
           @data[id] = @@parameters[id][:converter].call(value)
         elsif @options[:unknown_parameter] == :fail
           raise RuntimeError, "unknown parameter #{key}" # otherwise ignore
