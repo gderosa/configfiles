@@ -5,7 +5,7 @@
 
 module ConfigFiles
 
-  VERSION = '0.0.1'
+  VERSION = '0.0.2'
 
   module Parser
     def self.read_file(path)
