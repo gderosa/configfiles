@@ -1,6 +1,8 @@
 # Copyright 2010, Guido De Rosa <guido.derosa*vemarsas.it>
 # License: same of Ruby
 
+require 'configfiles/extensions/enumerable'
+
 module ConfigFiles
 
   VERSION = '0.0.2'
@@ -8,7 +10,7 @@ module ConfigFiles
   # You should write your parser class and include this module.
   # Your parser class must have a read(io) class method,
   # taking an IO object and returnig a key-value hash, where keys
-  # are smbols and values are Strings or Enumerators yielding Strings 
+  # are symbols and values are Strings or Enumerators yielding Strings 
   #
   # This result will be passed to YourConfigClass#load,
   # where YourConfigClass inherits from ConfigFiles::Base
@@ -24,25 +26,43 @@ module ConfigFiles
     class ArgumentError < ::ArgumentError; end
     class RuntimeError < ::RuntimeError; end
 
-    @@parameters ||= {}
-    @@options ||= {}
+    @@parameters  ||= {}
+    @@behavior    ||= {
+      :unknown_parameter => :ignore,
+      :unknown_value    => :fail  # when the converter is a Hash,
+                                  # whose keys represents a fixed set
+                                  # of allowed strings, and values represents
+                                  # their "meaning", tipically as a Symbol
+    }
+    @@validate    ||= lambda {|data| true} 
 
-    # examples: 
-    #   on :unknown_parameter, :fail | :accept | :ignore
+    # Examples: 
+    #   on :unknown_parameter, :fail # or :accept, or :ignore
     #   on :unknown_parameter, {|str| str.to_i}
     #
-    def self.on(name, value=nil, &block)
+    # There's also :unknown_value, to specify behavior when the
+    # converter is an Hash and the value found if not among the
+    # hash keys. Usage is similar.
+    #
+    def self.on(circumstance, action=nil, &block)
+      actions       = [:accept, :ignore, :fail] 
+      circumstances = [:unknown_parameter, :unknown_value]      
+      unless circumstances.include? circumstance
+        raise ArgumentError, "Invalid circumstance: #{circumstance.inspect}. Allowed values are #{circumstances.list_inspect}."
+      end
       if block
-        @@options[name] = block
-      elsif name == :unknown_parameter and value == :accept
-        @@options[name] = lambda {|x| x} 
+        @@behavior[circumstance] = block
+      elsif action == :accept
+        @@behavior[circumstance] = lambda {|x| x} 
+      elsif actions.include? action
+        @@behavior[circumstance] = action
       else
-        @@options[name] = value
+        raise ArgumentError, "Invalid action: #{action}. Allowed values are #{actions.list_inspect}."
       end
     end
 
     def self.option(name)
-      @@options[name]
+      @@behavior[name]
     end
 
     def self.parameter(name, converter=nil, &converter_block)
@@ -50,7 +70,17 @@ module ConfigFiles
         if converter_block
           raise ArgumentError, 'you must either specify a symbol or a block'
         elsif converter.is_a? Hash
-          converter_block = lambda {|x| converter[x]} # x is a String from conf file
+
+          converter_block = lambda do |x| # x is a String from conf file 
+            if converter.keys.include? x
+              return converter[x] # returns from lambda, not from method 
+            elsif @@behavior[:unknown_value] == :fail
+              raise ArgumentError, "Invalid value \"#{x}\" for parameter \"#{name}\". Allowed values are #{converter.keys.list_inspect}."
+            elsif @@behavior[:unknown_value] == :accept
+              return x
+            end
+          end 
+
         else #Symbol
           converter_block = lambda {|x| x.method(converter).call}
         end
@@ -62,7 +92,8 @@ module ConfigFiles
       }
     end
 
-    # A special kind of parameter, with a special kind of converter, which in turn
+    # A special kind of parameter, with a special kind of converter, 
+    # which in turn
     # converts an Enumerator of Strings into an Enumerator of custom objects. 
     # Working with Enumerators instead of
     # Arrays is the right thing to do when you deal with very long list of
@@ -84,7 +115,7 @@ module ConfigFiles
     attr_accessor :options, :data
 
     def initialize
-      @options = @@options.dup
+      @behavior = @@behavior.dup
       @data = {}
       def @data.missing_method(id); @data[id]; end
     end
@@ -97,10 +128,10 @@ module ConfigFiles
       h.each_pair do |id, value|
         if @@parameters[id] and @@parameters[id][:converter]
           @data[id] = @@parameters[id][:converter].call(value)
-        elsif @options[:unknown_parameter] == :fail
+        elsif @behavior[:unknown_parameter] == :fail
           raise RuntimeError, "unknown parameter #{key}" # otherwise ignore
-        elsif @options[:unknown_parameter].respond_to? :call
-          block = @options[:unknown_parameter]
+        elsif @behavior[:unknown_parameter].respond_to? :call
+          block = @behavior[:unknown_parameter]
           @data[id] = block.call value
         end
       end
