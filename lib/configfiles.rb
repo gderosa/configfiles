@@ -7,19 +7,12 @@ module ConfigFiles
 
   VERSION = '0.0.2'
 
-  # You should write your parser class and include this module.
-  # Your parser class must have a read(io) class method,
+  # You should write a read(io) method,
   # taking an IO object and returnig a key-value hash, where keys
-  # are symbols and values are Strings or Enumerators yielding Strings 
+  # are symbols, and values are Strings or Enumerators yielding Strings 
   #
   # This result will be passed to YourConfigClass#load,
   # where YourConfigClass inherits from ConfigFiles::Base
-  #
-  module Parser
-    def self.read_file(path)
-      self.read File.open path
-    end
-  end
 
   class Base
 
