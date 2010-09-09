@@ -7,13 +7,6 @@ module ConfigFiles
 
   VERSION = '0.0.2'
 
-  class ArgumentError < ::ArgumentError; end
-  class RuntimeError < ::RuntimeError; end
-
-  class AlreadyDefinedParameter < ::Exception; end
-  class DefaultAlreadySet < ::Exception; end
-  AlreadyDefinedDefault = DefaultAlreadySet
-  
   # You should write a read(io) method,
   # taking an IO object and returnig a key-value hash, where keys
   # are symbols, and values are Strings or Enumerators yielding Strings 
@@ -21,6 +14,13 @@ module ConfigFiles
   # This result will be passed to YourConfigClass#load,
   # where YourConfigClass inherits from ConfigFiles::Base
   class Base
+
+    class ArgumentError < ::ArgumentError; end
+    class RuntimeError < ::RuntimeError; end
+
+    class AlreadyDefinedParameter < ::Exception; end
+    class DefaultAlreadySet < ::Exception; end
+    AlreadyDefinedDefault = DefaultAlreadySet
 
     @@parameters  ||= {}
     @@behavior    ||= {
@@ -123,7 +123,7 @@ module ConfigFiles
     def initialize
       @behavior = @@behavior.dup
       @data = {}
-      def @data.missing_method(id); @data[id]; end
+      def @data.method_missing(id); self[id]; end
     end
 
     def validate
