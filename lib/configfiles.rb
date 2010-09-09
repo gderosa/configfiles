@@ -7,17 +7,20 @@ module ConfigFiles
 
   VERSION = '0.0.2'
 
+  class ArgumentError < ::ArgumentError; end
+  class RuntimeError < ::RuntimeError; end
+
+  class AlreadyDefinedParameter < ::Exception; end
+  class DefaultAlreadySet < ::Exception; end
+  AlreadyDefinedDefault = DefaultAlreadySet
+  
   # You should write a read(io) method,
   # taking an IO object and returnig a key-value hash, where keys
   # are symbols, and values are Strings or Enumerators yielding Strings 
   #
   # This result will be passed to YourConfigClass#load,
   # where YourConfigClass inherits from ConfigFiles::Base
-
   class Base
-
-    class ArgumentError < ::ArgumentError; end
-    class RuntimeError < ::RuntimeError; end
 
     @@parameters  ||= {}
     @@behavior    ||= {
@@ -59,6 +62,9 @@ module ConfigFiles
     end
 
     def self.parameter(name, converter=nil, &converter_block)
+      if @@parameters[name] and @@parameters[name][:converter]
+        raise AlreadyDefinedParameter, "Already defined parameter \"#{name}\""
+      end
       if converter
         if converter_block
           raise ArgumentError, 'you must either specify a symbol or a block'
@@ -80,9 +86,16 @@ module ConfigFiles
       else
         converter_block ||= lambda {|x| x}  
       end
-      @@parameters[name] = {
-        :converter  => converter_block
-      }
+      @@parameters[name] ||= {} 
+      @@parameters[name][:converter] = converter_block
+    end
+
+    def self.default(name, value)
+      if @@parameters[name] and @@parameters[name][:default]
+        raise DefaultAlreadySet, "Default for \"#{name}\" has been already set (to value: #{@@parameters[name][:default]})"
+      end
+      @@parameters[name] ||= {}
+      @@parameters[name][:default] = value
     end
 
     # A special kind of parameter, with a special kind of converter, 
@@ -118,6 +131,7 @@ module ConfigFiles
     end
 
     def load(h)
+
       h.each_pair do |id, value|
         if @@parameters[id] and @@parameters[id][:converter]
           @data[id] = @@parameters[id][:converter].call(value)
@@ -128,6 +142,14 @@ module ConfigFiles
           @data[id] = block.call value
         end
       end
+
+      # assign default values to the remaining params
+      @@parameters.each_pair do |name, h| 
+        if !@data[name] and @@parameters[name][:default]
+          @data[name] = @@parameters[name][:default]
+        end
+      end
+
       validate  
     end
 
