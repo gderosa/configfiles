@@ -18,6 +18,8 @@ module ConfigFiles
     class ArgumentError < ::ArgumentError; end
     class RuntimeError < ::RuntimeError; end
 
+    class ValidationFailed < RuntimeError; end
+
     class AlreadyDefinedParameter < ::Exception; end
     class DefaultAlreadySet < ::Exception; end
     AlreadyDefinedDefault = DefaultAlreadySet
@@ -123,7 +125,18 @@ module ConfigFiles
     def initialize
       @behavior = @@behavior.dup
       @data = {}
-      def @data.method_missing(id); self[id]; end
+      def @data.__compute_deferred
+        h = {}
+        each_pair do |k, v|
+          if v.is_a? Proc
+            h[k] = v.call(self)
+          end
+        end
+        return h
+      end
+      def @data.method_missing(id)
+        self[id]
+      end
     end
 
     def validate
@@ -154,13 +167,7 @@ module ConfigFiles
     end
 
     def deferred_data
-      h = {}
-      @data.select do |k, v|
-        if v.is_a? Proc
-          h[k] = v.call(@data)
-        end
-      end
-      return h
+      @data.__compute_deferred
     end
 
     def flush
