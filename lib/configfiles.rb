@@ -153,6 +153,16 @@ module ConfigFiles
       validate  
     end
 
+    def deferred_data
+      h = {}
+      @data.select do |k, v|
+        if v.is_a? Proc
+          h[k] = v.call(@data)
+        end
+      end
+      return h
+    end
+
     def flush
       @data = {}
     end
