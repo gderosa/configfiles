@@ -135,22 +135,10 @@ module ConfigFiles
     def initialize
       @behavior = @@behavior.dup
       @data = {}
-      def @data.__compute_deferred
-        h = {}
-        each_pair do |k, v|
-          if v.is_a? Proc
-            h[k] = v.call(self)
-          end
-        end
-        return h
-      end
-      def @data.method_missing(id)
-        self[id]
-      end
     end
 
     def validate
-      @@validate.call(@data)
+      @@validate.call(computed_data) 
     end
 
     def load(h)
@@ -177,7 +165,17 @@ module ConfigFiles
     end
 
     def deferred_data
-      @data.__compute_deferred
+      h = {}
+      @data.each_pair do |k, v|
+        if v.is_a? Proc
+          h[k] = v.call(@data)
+        end
+      end
+      return h
+    end
+
+    def computed_data
+      @data.merge deferred_data
     end
 
     def flush
