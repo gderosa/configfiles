@@ -9,7 +9,7 @@ module ConfigFiles
 
   # You should write a read(io) method,
   # taking an IO object and returnig a key-value hash, where keys
-  # are symbols, and values are Strings or Enumerators yielding Strings 
+  # are symbols, and values are Strings or Enumerable yielding Strings 
   #
   # This result will be passed to YourConfigClass#load,
   # where YourConfigClass inherits from ConfigFiles::Base
@@ -102,15 +102,25 @@ module ConfigFiles
 
     # A special kind of parameter, with a special kind of converter, 
     # which in turn
-    # converts an Enumerator of Strings into an Enumerator of custom objects. 
-    # Working with Enumerators instead of
-    # Arrays is the right thing to do when you deal with very long list of
-    # names, IP adresses, URIs etc. 
-    def self.enumerator(name, &block)
-      parameter name do |enum|
+    # converts an Enumerable yielding Strings into an Enumerator of 
+    # custom objects. You may work with Enumerators instead of
+    # Arrays , which is the right thing to do when you deal with very 
+    # long list of names, IP adresses, URIs etc (lazy evaluation) .
+    def self.enumerator(name, converter=nil, &converter_block)
+      if block_given?
+        raise ArgumentError, 'you must either specify a symbol or a block' if
+            converter
+      else
+        if converter # converter may be :to_i etc.
+          converter_block = lambda {|x| x.method(converter).call} 
+        else
+          converter_block = lambda {|x| x}
+        end
+      end
+      parameter name do |enumerable|
         Enumerator.new do |yielder|
-          enum.each do |string|
-            yielder << block.call(string) 
+          enumerable.each do |string|
+            yielder << converter_block.call(string) 
           end
         end
       end
