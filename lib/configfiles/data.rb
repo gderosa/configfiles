@@ -1,6 +1,6 @@
-require 'facets/openobject'
+require 'facets/ostruct'
 
 module ConfigFiles
-  class Data < OpenObject
+  class Data < OpenStruct
   end
 end
