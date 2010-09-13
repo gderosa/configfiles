@@ -1,11 +1,13 @@
 # Copyright 2010, Guido De Rosa <guido.derosa*vemarsas.it>
 # License: same of Ruby
 
+require 'facets/enumerable/defer'
+
 require 'configfiles/extensions/enumerable'
 
 module ConfigFiles
 
-  VERSION = '0.0.2'
+  VERSION = '0.1.0'
 
   # You should write a read(io) method,
   # taking an IO object and returnig a key-value hash, where keys
@@ -117,12 +119,17 @@ module ConfigFiles
           converter_block = lambda {|x| x}
         end
       end
+      #parameter name do |enumerable|
+      #  Enumerator.new do |yielder|
+      #    enumerable.each do |string|
+      #      yielder << converter_block.call(string) 
+      #    end
+      #  end
+      #end
+      #
+      # Use facets instead
       parameter name do |enumerable|
-        Enumerator.new do |yielder|
-          enumerable.each do |string|
-            yielder << converter_block.call(string) 
-          end
-        end
+        enumerable.defer.map{|element| converter_block.call(element)} 
       end
     end
 
