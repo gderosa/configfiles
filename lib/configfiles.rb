@@ -4,6 +4,7 @@
 require 'facets/enumerable/defer'
 
 require 'configfiles/extensions/enumerable'
+require 'configfiles/data'
 
 module ConfigFiles
 
@@ -141,11 +142,11 @@ module ConfigFiles
 
     def initialize
       @behavior = @@behavior.dup
-      @data = {}
+      @data = ::ConfigFiles::Data.new {} 
     end
 
     def validate
-      @@validate.call(computed_data) 
+      @@validate.call(data) 
     end
 
     def load(h)
@@ -168,27 +169,30 @@ module ConfigFiles
         end
       end
 
-      validate  
-    end
-
-    def deferred_data
-      h = {}
-      @data.each_pair do |k, v|
-        if v.is_a? Proc
-          h[k] = v.call(@data)
-        end
+      @data.as_hash! do |data_h|
+        data_h.merge! deferred_data_h
       end
-      return h
-    end
 
-    def computed_data
-      @data.merge deferred_data
+      validate  
     end
 
     def flush
       @data = {}
     end
 
-  end
+    private
 
+    def deferred_data_h
+      results_h = {} 
+      @data.as_hash! do |data_h|
+        data_h.each_pair do |k, v|
+          if v.is_a? Proc
+            results_h[k] = v.call(data_h)
+          end
+        end
+      end
+      results_h
+    end
+
+  end
 end
