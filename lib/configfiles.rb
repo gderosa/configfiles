@@ -195,7 +195,9 @@ module ConfigFiles
     end
     def []=(key, val); set(key, val); end
 
-    # TODO: def each !
+    def each(&blk) 
+      @data.each(&blk)
+    end
 
     private
 
