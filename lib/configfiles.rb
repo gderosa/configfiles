@@ -26,9 +26,8 @@ module ConfigFiles
     class ValidationFailed        < ::RuntimeError;   end
     class AlreadyDefinedParameter < ::Exception;      end
     class DefaultAlreadySet       < ::Exception;      end
+    class VirtualParameterFound   < ::RuntimeError;   end
     
-    AlreadyDefinedDefault = DefaultAlreadySet
-
     @@parameters  ||= {}
     @@behavior    ||= {
       :unknown_parameter => :ignore,
@@ -128,6 +127,15 @@ module ConfigFiles
         end
         @@parameters[name] ||= {}
         @@parameters[name][:default] = value
+      end
+
+      # Define a parameter as a function of other parameters.
+      def virtual(name, &block)
+        parameter name do |str|
+          raise VirtualParameterFound, 
+              "'#{name}' is a virtual parameter, it shouldn't appear directly!"
+        end
+        default name, block 
       end
 
       # A special kind of parameter, with a special kind of converter, 
