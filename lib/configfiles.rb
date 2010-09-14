@@ -4,7 +4,6 @@
 require 'facets/enumerable/defer'
 
 require 'configfiles/extensions/enumerable'
-require 'configfiles/data'
 
 module ConfigFiles
 
@@ -18,13 +17,13 @@ module ConfigFiles
   # where YourConfigClass inherits from ConfigFiles::Base
   class Base
 
-    class ArgumentError < ::ArgumentError; end
-    class RuntimeError < ::RuntimeError; end
+    class ArgumentError           < ::ArgumentError;  end
+    class RuntimeError            < ::RuntimeError;   end
+    class NoKeyError              < ::NameError;      end
+    class ValidationFailed        < ::RuntimeError;   end
+    class AlreadyDefinedParameter < ::Exception;      end
+    class DefaultAlreadySet       < ::Exception;      end
 
-    class ValidationFailed < RuntimeError; end
-
-    class AlreadyDefinedParameter < ::Exception; end
-    class DefaultAlreadySet < ::Exception; end
     AlreadyDefinedDefault = DefaultAlreadySet
 
     @@parameters  ||= {}
@@ -138,15 +137,15 @@ module ConfigFiles
       @@validate = block
     end
 
-    attr_accessor :options, :data
+    attr_accessor :options #, :data
 
     def initialize
       @behavior = @@behavior.dup
-      @data = ::ConfigFiles::Data.new {} 
+      @data = {}
     end
 
     def validate
-      @@validate.call(data) 
+      @@validate.call(self) 
     end
 
     def load(h)
@@ -169,26 +168,42 @@ module ConfigFiles
         end
       end
 
-      @data.as_hash! do |data_h|
-        data_h.merge! deferred_data_h
-      end
+      @data.merge! deferred_data_h
 
       validate  
     end
 
-    def flush
-      @data = {}
+    # behave like a Hash, but more rigidly! you cannot automagically
+    # add keys without calling Configfiles::Base.parameter
+    
+    def data(key)
+      if @data.keys.include? key
+        @data[key]
+      else
+        raise NoKeyError, "uknown key '#{key}' for #{self.class}"
+      end
     end
+    def get(key); data(key);  end
+    def [](key);  data(key);  end 
+
+    def set(key, val)
+      if @data.keys.include? key
+        @data[key] = val
+      else
+        raise NoKeyError, "uknown key '#{key}' for #{self.class}"
+      end
+    end
+    def []=(key, val); set(key, val); end
+
+    # TODO: def each !
 
     private
 
     def deferred_data_h
       results_h = {} 
-      @data.as_hash! do |data_h|
-        data_h.each_pair do |k, v|
-          if v.is_a? Proc
-            results_h[k] = v.call(data_h)
-          end
+      @data.each do |k, v|
+        if v.is_a? Proc
+          results_h[k] = v.call(@data)
         end
       end
       results_h
