@@ -17,6 +17,9 @@ module ConfigFiles
   # where YourConfigClass inherits from ConfigFiles::Base
   class Base
 
+    CIRCUMSTANCES       = [:unknown_parameter, :unknown_value]
+    PREDEFINED_ACTIONS  = [:accept, :ignore, :fail]
+
     class ArgumentError           < ::ArgumentError;  end
     class RuntimeError            < ::RuntimeError;   end
     class NoKeyError              < ::NameError;      end
@@ -47,8 +50,8 @@ module ConfigFiles
       # hash keys. Usage is similar.
       #
       def on(circumstance, action=nil, &block)
-        actions       = [:accept, :ignore, :fail] 
-        circumstances = [:unknown_parameter, :unknown_value]      
+        actions       = PREDEFINED_ACTIONS
+        circumstances = CIRCUMSTANCES
         unless circumstances.include? circumstance
           raise ArgumentError, "Invalid circumstance: #{circumstance.inspect}. Allowed values are #{circumstances.list_inspect}."
         end
@@ -63,8 +66,32 @@ module ConfigFiles
         end
       end
 
+      # +circumstance+ must be an elements of +CIRCUMSTANCES+
+      #
+      # returns an elements of +PREDEFINED_ACTIONS+ or a user-defined Proc
       def behavior_on(circumstance); on(circumstance); end
 
+      # Add a parameter.
+      #
+      #   # keep as is
+      #   parameter :myparam 
+      #
+      #   # convert to integer
+      #   parameter :myparam, :to_i
+      #
+      #   # do some computation
+      #   parameter :myparam do |str|
+      #     ... 
+      #     ...
+      #     my_result
+      #   end
+      #
+      #   # map a set of possible/admitted values; you may call the 
+      #   # class method +on+(:unknown_value) to customize behavior
+      #   parameter :myparam,
+      #     '1' => :my_first_option,
+      #     '2' => :my_second_one
+      #
       def parameter(name, converter=nil, &converter_block)
         if @@parameters[name] and @@parameters[name][:converter]
           raise AlreadyDefinedParameter, "Already defined parameter \"#{name}\""
@@ -94,6 +121,7 @@ module ConfigFiles
         @@parameters[name][:converter] = converter_block
       end
 
+      # set default value of a parameter
       def default(name, value)
         if @@parameters[name] and @@parameters[name][:default]
           raise DefaultAlreadySet, "Default for \"#{name}\" has been already set (to value: #{@@parameters[name][:default]})"
@@ -133,6 +161,14 @@ module ConfigFiles
         end
       end
 
+      # Set validaion rules. For example, if parameter 'a' must be 
+      # smaller than 'b':
+      #
+      #   validate do |confdata|  
+      #     raise ValidationFailed, "no good!" unless
+      #         confdata[:a] <= confdata[:b] 
+      #   end
+      #
       def validate(&block)
         @@validate = block
       end
@@ -143,10 +179,17 @@ module ConfigFiles
       @data = {}
     end
 
+    # Validate configuration object, according to what declared 
+    # with the class method 
     def validate
       @@validate.call(self) 
     end
 
+    # Load the Hash h onto the ConfigFiles object, carrying on conversions
+    # to Ruby objects, validation, and default actions
+    # if needed. h's keys are Symbols, h's values are typically Strings
+    # or Enumerables yielding Strings. See also ConfigFiles::Base.parameter
+    # and ConfigFiles::Base.on.
     def load(h)
 
       h.each_pair do |id, value|
@@ -174,9 +217,8 @@ module ConfigFiles
       validate  
     end
 
-    # Like a Hash#[], but more rigidly! you cannot automagically
-    # add keys without calling Configfiles::Base::parameter
-
+    # Like Hash#[], but more rigidly! Raise an Exception on unknown
+    # key, instead of returning nil.
     def [](key)
       if @data.keys.include? key
         @data[key]
@@ -185,6 +227,8 @@ module ConfigFiles
       end
     end
 
+    # Like Hash#[]=, but more rigidly! New keys are not created 
+    # automagically. You should have used ConfigFiles.parameter for that.
     def []=(key, val)
       if @data.keys.include? key
         @data[key] = val
@@ -193,6 +237,8 @@ module ConfigFiles
       end
     end
 
+    # Like Hash#each, iterate over parameter names and values.
+    #   conf.each{|name, value| puts "#{name} is set to #{value}"}
     def each(&blk) 
       @data.each(&blk)
     end
