@@ -3,12 +3,12 @@
 A simple library to specify the format of configuration files and the 
 way to turn their data into Ruby objects. 
 
-Ruby1.9 centric. "Lazy" to some extent and as needed. 
+Ruby1.9 centric. Uses some lazy evaluation. 
 
 No write support: it's strongly sugested to use ERB or other 
 templating systems for that.
 
-A good example usage is found at http:/github.com/gderosa/dansguardian.rb .
+A good example usage is found at http://github.com/gderosa/dansguardian.rb .
 
 ==Author
 
