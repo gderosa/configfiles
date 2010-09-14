@@ -130,6 +130,10 @@ module ConfigFiles
       end
 
       # Define a parameter as a function of other parameters.
+      # Example:
+      #   virtual :delta do |confdata|
+      #     confdata[:this] - confdata[:that]
+      #   end
       def virtual(name, &block)
         parameter name do |str|
           raise VirtualParameterFound, 
