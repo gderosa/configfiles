@@ -1,3 +1,6 @@
+0.3.0
+* options to avoid validation and extra computation on Base#load
+
 0.2.0
 *  add 'virtual' parameter 
 
