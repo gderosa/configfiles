@@ -36,15 +36,13 @@ module ConfigFiles
       # sec 7.1.16
       
       # *class instance variables* accessors
-      attr_accessor :parameters, :behavior, :validate
+      attr_accessor :parameters, :behavior, :validation
 
       def inherited(subclass)
-        puts "SUBCLASS: #{subclass}"
         subclass.class_instance_initialize
       end
 
       def class_instance_initialize
-        puts "class_instance_initialize #{self}"
         @parameters  ||= {}
         @behavior    ||= {
           :unknown_parameter => :ignore,
@@ -53,7 +51,7 @@ module ConfigFiles
                                       # of allowed strings, and values represents
                                       # their "meaning", tipically as a Symbol
         }
-        @validate    ||= lambda {|data| true} 
+        @validation  ||= lambda {|data| true} 
       end
 
       # Examples: 
@@ -197,7 +195,7 @@ module ConfigFiles
       #   end
       #
       def validate(&block)
-        @validate = block
+        @validation = block
       end
 
     end # class << self
@@ -209,8 +207,7 @@ module ConfigFiles
     # Validate configuration object, according to what declared 
     # with the class method 
     def validate
-      pp self.class
-      self.class.validate.call(self) 
+      self.class.validation.call(self) 
     end
 
     # Load the Hash h onto the ConfigFiles object, carrying on conversions
