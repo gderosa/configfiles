@@ -28,17 +28,33 @@ module ConfigFiles
     class DefaultAlreadySet       < ::Exception;      end
     class VirtualParameterFound   < ::RuntimeError;   end
     
-    @@parameters  ||= {}
-    @@behavior    ||= {
-      :unknown_parameter => :ignore,
-      :unknown_value    => :fail  # when the converter is a Hash,
-                                  # whose keys represents a fixed set
-                                  # of allowed strings, and values represents
-                                  # their "meaning", tipically as a Symbol
-    }
-    @@validate    ||= lambda {|data| true} 
-
     class << self
+
+      # NOTE: *class instance variables* to avoid overlapping when you have
+      # several inherited classes! See "The Ruby Programming Language" by David
+      # Flanagan and Yukihiro Matsumoto, 2008, O'Really, 978-0-596-51617-8, 
+      # sec 7.1.16
+      
+      # *class instance variables* accessors
+      attr_accessor :parameters, :behavior, :validate
+
+      def inherited(subclass)
+        puts "SUBCLASS: #{subclass}"
+        subclass.class_instance_initialize
+      end
+
+      def class_instance_initialize
+        puts "class_instance_initialize #{self}"
+        @parameters  ||= {}
+        @behavior    ||= {
+          :unknown_parameter => :ignore,
+          :unknown_value    => :fail  # when the converter is a Hash,
+                                      # whose keys represents a fixed set
+                                      # of allowed strings, and values represents
+                                      # their "meaning", tipically as a Symbol
+        }
+        @validate    ||= lambda {|data| true} 
+      end
 
       # Examples: 
       #   on :unknown_parameter, :fail # or :accept, or :ignore
@@ -55,13 +71,13 @@ module ConfigFiles
           raise ArgumentError, "Invalid circumstance: #{circumstance.inspect}. Allowed values are #{circumstances.list_inspect}."
         end
         if block
-          @@behavior[circumstance] = block
+          @behavior[circumstance] = block
         elsif actions.include? action
-          @@behavior[circumstance] = action
+          @behavior[circumstance] = action
         elsif action
           raise ArgumentError, "Invalid action: #{action}. Allowed values are #{actions.list_inspect}."
         else
-          return @@behavior[circumstance] 
+          return @behavior[circumstance] 
         end
       end
 
@@ -91,7 +107,7 @@ module ConfigFiles
       #     '2' => :my_second_one
       #
       def parameter(name, converter=nil, &converter_block)
-        if @@parameters[name] and @@parameters[name][:converter]
+        if @parameters[name] and @parameters[name][:converter]
           raise AlreadyDefinedParameter, "Already defined parameter \"#{name}\""
         end
         if converter
@@ -102,9 +118,9 @@ module ConfigFiles
             converter_block = lambda do |x| # x is a String from conf file 
               if converter.keys.include? x
                 return converter[x] # returns from lambda, not from method 
-              elsif @@behavior[:unknown_value] == :fail
+              elsif @behavior[:unknown_value] == :fail
                 raise ArgumentError, "Invalid value \"#{x}\" for parameter \"#{name}\". Allowed values are #{converter.keys.list_inspect}."
-              elsif @@behavior[:unknown_value] == :accept
+              elsif @behavior[:unknown_value] == :accept
                 return x
               end
             end 
@@ -115,17 +131,17 @@ module ConfigFiles
         else
           converter_block ||= lambda {|x| x}  
         end
-        @@parameters[name] ||= {} 
-        @@parameters[name][:converter] = converter_block
+        @parameters[name] ||= {} 
+        @parameters[name][:converter] = converter_block
       end
 
       # set default value of a parameter
       def default(name, value)
-        if @@parameters[name] and @@parameters[name][:default]
-          raise DefaultAlreadySet, "Default for \"#{name}\" has been already set (to value: #{@@parameters[name][:default]})"
+        if @parameters[name] and @parameters[name][:default]
+          raise DefaultAlreadySet, "Default for \"#{name}\" has been already set (to value: #{@parameters[name][:default]})"
         end
-        @@parameters[name] ||= {}
-        @@parameters[name][:default] = value
+        @parameters[name] ||= {}
+        @parameters[name][:default] = value
       end
 
       # Define a parameter as a function of other parameters.
@@ -181,7 +197,7 @@ module ConfigFiles
       #   end
       #
       def validate(&block)
-        @@validate = block
+        @validate = block
       end
 
     end # class << self
@@ -193,7 +209,8 @@ module ConfigFiles
     # Validate configuration object, according to what declared 
     # with the class method 
     def validate
-      @@validate.call(self) 
+      pp self.class
+      self.class.validate.call(self) 
     end
 
     # Load the Hash h onto the ConfigFiles object, carrying on conversions
@@ -222,23 +239,23 @@ module ConfigFiles
       opt_h = opt_h_defaults.merge(opt_h) 
 
       h.each_pair do |id, value|
-        if @@parameters[id] and @@parameters[id][:converter]
-          @data[id] = @@parameters[id][:converter].call(value)
-        elsif @@behavior[:unknown_parameter] == :fail
+        if self.class.parameters[id] and self.class.parameters[id][:converter]
+          @data[id] = self.class.parameters[id][:converter].call(value)
+        elsif self.class.behavior[:unknown_parameter] == :fail
           raise RuntimeError, "unknown parameter #{key}" # otherwise ignore
-        elsif @@behavior[:unknown_parameter] == :accept
+        elsif self.class.behavior[:unknown_parameter] == :accept
           @data[id] = value
-        elsif @@behavior[:unknown_parameter].respond_to? :call
-          block = @@behavior[:unknown_parameter]
+        elsif self.class.behavior[:unknown_parameter].respond_to? :call
+          block = self.class.behavior[:unknown_parameter]
           @data[id] = block.call value
         end
       end
 
       if opt_h[:compute_defaults]
         # assign default values to the remaining params
-        @@parameters.each_pair do |name, h| 
-          if !@data[name] and @@parameters[name][:default]
-            @data[name] = @@parameters[name][:default]
+        self.class.parameters.each_pair do |name, h| 
+          if !@data[name] and self.class.parameters[name][:default]
+            @data[name] = self.class.parameters[name][:default]
           end
         end
       end
@@ -288,3 +305,5 @@ module ConfigFiles
 
   end
 end
+
+ConfigFiles::Base.class_instance_initialize
