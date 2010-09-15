@@ -1,8 +1,16 @@
+0.3.1
+
+* implementation based on class instance variables
+	* fixes data clobbering between inherited classes
+
 0.3.0
+
 * options to avoid validation and extra computation on Base#load
 
 0.2.0
+
 *  add 'virtual' parameter 
 
 0.1.0
+
 * first non-alpha release
