@@ -234,7 +234,7 @@ module ConfigFiles
         end
       end
 
-      if opt_h[:defaults]
+      if opt_h[:compute_defaults]
         # assign default values to the remaining params
         @@parameters.each_pair do |name, h| 
           if !@data[name] and @@parameters[name][:default]
@@ -243,7 +243,7 @@ module ConfigFiles
         end
       end
 
-      @data.merge! deferred_data if opt_h[:deferred]
+      @data.merge! deferred_data if opt_h[:compute_deferred]
 
       validate if opt_h[:validate]
     end
