@@ -7,7 +7,7 @@ require 'configfiles/extensions/enumerable'
 
 module ConfigFiles
 
-  VERSION = '0.1.0'
+  VERSION = '0.2.0'
 
   # You should write a read(io) method,
   # taking an IO object and returnig a key-value hash, where keys
