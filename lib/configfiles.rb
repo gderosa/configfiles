@@ -65,9 +65,8 @@ module ConfigFiles
         end
       end
 
-      # +circumstance+ must be an elements of +CIRCUMSTANCES+
-      #
-      # returns an elements of +PREDEFINED_ACTIONS+ or a user-defined Proc
+      # +circumstance+ must be an element of +CIRCUMSTANCES+ .
+      # Returns an element of +PREDEFINED_ACTIONS+ or a user-defined Proc
       def behavior_on(circumstance); on(circumstance); end
 
       # Add a parameter.
@@ -173,7 +172,7 @@ module ConfigFiles
         end
       end
 
-      # Set validaion rules. For example, if parameter 'a' must be 
+      # Set validation rules. For example, if parameter 'a' must be 
       # smaller than 'b':
       #
       #   validate do |confdata|  
@@ -200,9 +199,27 @@ module ConfigFiles
     # Load the Hash h onto the ConfigFiles object, carrying on conversions
     # to Ruby objects, validation, and default actions
     # if needed. h's keys are Symbols, h's values are typically Strings
-    # or Enumerables yielding Strings. See also ConfigFiles::Base.parameter
-    # and ConfigFiles::Base.on.
-    def load(h)
+    # or Enumerables yielding Strings. See also ConfigFiles::Base::parameter
+    # and ConfigFiles::Base::on.
+    #
+    # Option Hash opt_h keys:
+    #
+    # * +:compute_defaults+ (default +true+)
+    # compute/assign default values to unset params if possible
+    #
+    # * +:compute_deferred+ (default +true+)
+    # compute/assign parameters which are function of others
+    #
+    # * +:validate+ (default +true+)
+    # perform validation defined in ConfigFiles::Base::validate
+    #
+    def load(h, opt_h={})
+      opt_h_defaults = {
+        :compute_defaults => true,
+        :compute_deferred => true,
+        :validate         => true
+      }
+      opt_h = opt_h_defaults.merge(opt_h) 
 
       h.each_pair do |id, value|
         if @@parameters[id] and @@parameters[id][:converter]
@@ -217,16 +234,18 @@ module ConfigFiles
         end
       end
 
-      # assign default values to the remaining params
-      @@parameters.each_pair do |name, h| 
-        if !@data[name] and @@parameters[name][:default]
-          @data[name] = @@parameters[name][:default]
+      if opt_h[:defaults]
+        # assign default values to the remaining params
+        @@parameters.each_pair do |name, h| 
+          if !@data[name] and @@parameters[name][:default]
+            @data[name] = @@parameters[name][:default]
+          end
         end
       end
 
-      @data.merge! deferred_data
+      @data.merge! deferred_data if opt_h[:deferred]
 
-      validate  
+      validate if opt_h[:validate]
     end
 
     # Like Hash#[], but more rigidly! Raise an Exception on unknown

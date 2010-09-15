@@ -15,6 +15,7 @@ Gem::Specification.new do |s|
   s.email = %q{guido.derosa@vemarsas.it}
   s.files = [
     "README.rdoc",
+    "Changelog",
     "lib/configfiles.rb",
     "lib/configfiles/extensions/enumerable.rb"
   ]
