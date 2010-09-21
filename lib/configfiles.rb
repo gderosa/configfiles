@@ -260,6 +260,8 @@ module ConfigFiles
       @data.merge! deferred_data if opt_h[:compute_deferred]
 
       validate if opt_h[:validate]
+
+      return self
     end
 
     # Like Hash#[], but more rigidly! Raise an Exception on unknown
