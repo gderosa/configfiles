@@ -200,6 +200,8 @@ module ConfigFiles
 
     end # class << self
 
+    attr_reader :data
+
     def initialize
       @data = {}
     end
